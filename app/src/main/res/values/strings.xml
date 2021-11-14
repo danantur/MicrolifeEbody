@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Ebody</string>
+    <string name="get_history">History</string>
+    <string name="send_user_info">Send UserInfo</string>
+    <string name="get_version">Info</string>
+    <string name="delete_users">delete users</string>
+</resources>
