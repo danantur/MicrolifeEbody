@@ -20,6 +20,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.dantesting.microlifeebody.communicate.DeviceActivity
 import com.dantesting.microlifeebody.R
 import com.dantesting.microlifeebody.connection.Client
+import com.dantesting.microlifeebody.connection.Parse
 import com.polidea.rxandroidble2.RxBleDevice
 import kotlin.collections.ArrayList
 
@@ -38,6 +39,8 @@ class SearchActivity : AppCompatActivity(), Client.StateCallback,
         super.onCreate(savedInstanceState)
 
         initLayout()
+
+        Parse.SYSTEM_CLOCK_BYTES
 
         client = Client(this, this, this)
     }

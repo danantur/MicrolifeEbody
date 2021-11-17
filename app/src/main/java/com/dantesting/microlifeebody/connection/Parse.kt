@@ -1,7 +1,8 @@
 package com.dantesting.microlifeebody.connection
 
-import com.dantesting.microlifeebody.connection.Commands.DeviceCommand.*
+import android.util.Log
 import com.dantesting.microlifeebody.connection.Commands.DeviceCommand
+import com.dantesting.microlifeebody.connection.Commands.DeviceCommand.*
 import com.dantesting.microlifeebody.connection.Commands.DeviceResponce
 import java.util.*
 import kotlin.math.roundToInt
@@ -20,22 +21,23 @@ class Parse {
         val SYSTEM_CLOCK_BYTES: ByteArray
             get() {
                 val cal = Calendar.getInstance()
-                val year = cal[1]
-                val month = cal[2] + 1
-                val date = cal[5]
-                val hour = cal[11]
-                val minute = cal[12]
-                val second = cal[13]
-                var week = cal[7]
+                val year = cal[Calendar.YEAR]
+                val month = cal[Calendar.MONTH]
+                val date = cal[Calendar.DAY_OF_MONTH]
+                val hour = cal[Calendar.HOUR_OF_DAY]
+                val minute = cal[Calendar.MINUTE]
+                val second = cal[Calendar.SECOND]
+                var week = cal[Calendar.DAY_OF_WEEK]
                 week = if (week == 1) 7 else week - 1
-                val yearLowHex = year and 255
-                val yearHeightHex = year shr 8 and 255
+                val yearBytes = divideIntToBytes(year, 2)
+                val yearLowHex = yearBytes[0]
+                val yearHeightHex = yearBytes[1]
                 val bytes = byteArrayOf(
                     -85,
                     9,
                     -104,
-                    yearLowHex.toByte(),
-                    yearHeightHex.toByte(),
+                    yearLowHex,
+                    yearHeightHex,
                     month.toByte(),
                     date.toByte(),
                     hour.toByte(),
@@ -43,6 +45,7 @@ class Parse {
                     second.toByte(),
                     week.toByte()
                 )
+                Log.e("debug", "${bytes.toList()}")
                 return bytes
             }
 
@@ -58,10 +61,10 @@ class Parse {
                     USER_INFO_SETTING_SUCCEEDED,
                     RECEIVE_MEASURE_DATA_FIRST -> Any()
                     SCALE_UNIT_CHANGE ->
-                        if (data[3].toInt() == 1) "kg" else "lb"
+                        if (data[3].toInt() == 0) "kg" else "lb"
                     RECEIVE_TIME ->
-                        Date(
-                            buildIntFromBytes(data[4], data[3]),
+                        Commands.DateData(
+                            buildIntFromBytes(byteArrayOf(data[3], data[4])),
                             data[5].toInt() and 255,
                             data[6].toInt() and 255,
                             data[7].toInt() and 255,
@@ -208,21 +211,25 @@ class Parse {
         }
 
         private fun parseMeasureResult(data: ByteArray): Commands.Measurement {
-            val year: Int = buildIntFromBytes(data[8], data[7])
-            val month: Int = data[9].toInt() and 255
-            val day: Int = data[10].toInt() and 255
-            val hour: Int = data[11].toInt() and 255
-            val minute: Int = data[12].toInt() and 255
-            val second: Int = data[13].toInt() and 255
-            val weight = buildIntFromBytes(data[16], data[15]).toFloat() / 10.0f
-            val fat = buildIntFromBytes(data[18], data[17]).toFloat() / 10.0f
-            val resistance: Int = buildIntFromBytes(data[20], data[19])
-            val bpm: Int = data[21].toInt() and 255
-            val unit = data[22].toInt()
-            return Commands.Measurement(
-                weight, fat, bpm, Date(year, month, day, hour, minute, second),
-                if (unit == 1) "kg" else "lb", resistance
-            )
+            if (data.size >= 18) {
+                val weight = buildIntFromBytes(data[5], data[4]).toFloat() / 10.0f
+                val fat = buildIntFromBytes(data[7], data[6]).toFloat() / 10.0f
+                val resistance: Int = buildIntFromBytes(data[17], data[16])
+                val year: Int = buildIntFromBytes(byteArrayOf(data[8], data[9]))
+                val month: Int = data[10].toInt() and 255
+                val day: Int = data[11].toInt() and 255
+                val hour: Int = data[12].toInt() and 255
+                val minute: Int = data[13].toInt() and 255
+                val second: Int = data[14].toInt() and 255
+                val unit: Int = data[18].toInt() and 255
+                return Commands.Measurement(
+                    weight, fat, 0, Commands.DateData(year, month, day, hour, minute, second),
+                    if (unit == 0) "kg" else "lg", resistance
+                )
+            } else {
+                return Commands.Measurement(0f,0f,0, Commands.DateData(0,0,0,0,0,0),
+                    "",0)
+            }
         }
 
         private fun parseOffMeasureResult(data: ByteArray): Commands.Measurement {
@@ -237,11 +244,11 @@ class Parse {
                 val minute: Int = data[13].toInt() and 255
                 val second: Int = data[14].toInt() and 255
                 return Commands.Measurement(
-                    weight, fat, 0, Date(year, month, day, hour, minute, second),
+                    weight, fat, 0, Commands.DateData(year, month, day, hour, minute, second),
                     "kg", resistance
                 )
             } else {
-                return Commands.Measurement(0f,0f,0, Date(),"",0)
+                return Commands.Measurement(0f,0f,0, Commands.DateData(0,0,0,0,0,0),"",0)
             }
         }
 
@@ -252,5 +259,46 @@ class Parse {
 
         private fun buildIntFromBytes(high: Byte, low: Byte): Int =
             high.toInt() and 255 shl 8 or low.toInt() and 255
+
+        fun divideIntToBytes(value: Int, bytesCount: Int): ByteArray {
+            val s = ByteArray(bytesCount)
+            for (i in 0 until bytesCount) {
+                s[i] = (value shr (8 * i)).toByte()
+            }
+            return s
+        }
+
+        fun buildIntFromBytes(s: ByteArray, reverse: Boolean = false): Int {
+            var value = 0
+            if (!reverse) {
+                for (i in s.indices) {
+                    value =
+                        if (i > 0) {
+                            value or (s[i].toBetterInt() shl (8*i))
+                        }
+                        else if (i == s.lastIndex) {
+                            value or (s[i].toInt() shl (8*i))
+                        } else {
+                            s[i].toBetterInt()
+                        }
+                }
+            }
+            else {
+                for (i in (s.size - 1) downTo 0) {
+                    value =
+                        if (i < s.lastIndex && i > 0) {
+                            value or (s[i].toBetterInt() shl (8*i))
+                        }
+                        else if (i == 0) {
+                            value or s[i].toBetterInt()
+                        } else {
+                            s[i].toInt() shl (8*i)
+                        }
+                }
+            }
+            return value
+        }
+
+        fun Byte.toBetterInt(): Int = toInt() and 0xff
     }
 }

@@ -21,7 +21,6 @@ class Commands {
         val notifyUuid: UUID = UUID.fromString("0000faa2-0000-1000-8000-00805f9b34fb")
 
         private var lastData: ByteArray = ByteArray(0)
-        private var measurement: ByteArray = ByteArray(23)
 
         fun parseWeightResponse(data: ByteArray): DeviceResponce? {
             if (data[0] != (-115).toByte()) {
@@ -36,30 +35,9 @@ class Commands {
                     val cmd = DeviceCommand.values().find {
                         it.code == data[2].toInt() and 255
                     }
+                    Log.e("READ_BYTES", "${cmd} ${data.toList()}")
                     if (cmd != null) {
-                        if (cmd != DeviceCommand.RECEIVE_MEASURE_DATA_FIRST &&
-                                cmd != DeviceCommand.RECEIVE_MEASURE_DATA) {
-                            return Parse.parseResponse(cmd, data)
-                        }
-                        else if (cmd == DeviceCommand.RECEIVE_MEASURE_DATA_FIRST) {
-                            System.arraycopy(
-                                data,
-                                3,
-                                measurement,
-                                0,
-                                15
-                            )
-                        }
-                        else {
-                            System.arraycopy(
-                                data,
-                                3,
-                                measurement,
-                                15,
-                                8
-                            )
-                            return Parse.parseResponse(cmd, measurement)
-                        }
+                        return Parse.parseResponse(cmd, data)
                     } else
                         Log.e("parseResponseError", "Такой команды не предусмотрено ${data.toList()}")
                 }
@@ -88,12 +66,14 @@ class Commands {
 
     data class ScaleInfo(val bleVer: Int, val scaleVer: Int, val coefficientVer: Int, val arithmeticVer: Int)
     data class UpgradeResult(val result: Int, val type: Int)
-    data class Measurement(val weight: Float, val fat: Float, val heartRate: Int, val dateTime: Date,
+    data class Measurement(val weight: Float, val fat: Float, val heartRate: Int, val dateTime: Commands.DateData,
                            val unit: String, val resistance: Int)
 
     data class ScaleUserInfo(var userId: String, var sex: Int, var height: Int,
                              var roleType: Int, var age: Int, var weight: Float,
                              var impedance: Int = 500)
+
+    data class DateData(val year:Int, val month:Int, val day:Int, val hour:Int, val minute:Int, val second:Int)
 
     /**
      * Describes app commands to device.

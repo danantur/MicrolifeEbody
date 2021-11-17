@@ -138,7 +138,8 @@ class DeviceActivity : AppCompatActivity(), Client.ConnectionCallback,
     override fun onSendSuccess(cmd: Commands.AppCommand, data: Any?) {
         // возникает при успешном отправлении команды
         if (data != null && (data is Date || data is Commands.Measurement || data is String
-                    || data is Commands.UpgradeResult || data is Commands.ScaleInfo)) {
+                    || data is Commands.UpgradeResult || data is Commands.ScaleInfo
+                    || data is Commands.DateData)) {
             addLog(cmd.name, "WRITE data = $data")
         }
         else
@@ -148,7 +149,8 @@ class DeviceActivity : AppCompatActivity(), Client.ConnectionCallback,
     override fun onData(cmd: Commands.DeviceCommand, data: Any) {
         // событие получения данных с устройства
         if (data is Date || data is Commands.Measurement || data is String
-            || data is Commands.UpgradeResult || data is Commands.ScaleInfo) {
+            || data is Commands.UpgradeResult || data is Commands.ScaleInfo
+            || data is Commands.DateData) {
             addLog(cmd.name, "READ data = $data")
         }
         else

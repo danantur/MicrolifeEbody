@@ -48,7 +48,9 @@ class Client(ctx: Context, private val stateCallback: StateCallback? = null,
     @SuppressLint("CheckResult")
     fun sendCommand(cmd: Commands.AppCommand, data: Any? = null) {
         if (connection != null) {
-            connection!!.writeCharacteristic(Commands.writeUuid, Commands.packWeightCommand(cmd, data))
+            val dt = Commands.packWeightCommand(cmd, data)
+            Log.e("WRITE_BYTES", dt.toList().toString())
+            connection!!.writeCharacteristic(Commands.writeUuid, dt)
                 .subscribe({
                     heartHandler.removeCallbacksAndMessages(null)
                     heartHandler.postDelayed({
